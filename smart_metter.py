@@ -26,8 +26,20 @@ ser = serial.Serial(
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_ONE,
     bytesize=serial.EIGHTBITS,
+    rtscts=True,   #HWフロー制御
+    xonxoff=False, #SWフロー制御
     timeout=2
 )
+
+# RTS/CTSのステータス確認
+print("RTS:", ser.rts)
+print("CTS:", ser.cts)
+
+# SKRESET
+ser.write(str.encode("SKRESET" + "\r\n"))
+ser.readline() # エコーバック
+print('SKRESET:', ser.readline().decode(encoding='utf-8'), end="")
+time.sleep(1)
 
 # Bルート認証パスワード設定
 print('Bルートパスワード設定')
@@ -99,7 +111,7 @@ while True:
     if Data.startswith(b"ERXUDP"):
         # print('fff')
         cols = Data.strip().split(b' ')
-        # print('[debug cols]', cols)
+        print('[debug cols]', cols)
         res = cols[9]  # UDP受信データ部分
         print('[debug res]', res, res.hex(), len(res))
         seoj = res[4:4+3]
@@ -120,7 +132,7 @@ while True:
         else:
             print('[Skip]')
 
-    sleep(30)
+    sleep(60)
 
 # ガード処理
-#ser.close()
+ser.close()
