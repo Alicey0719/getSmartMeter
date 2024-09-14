@@ -39,7 +39,7 @@ print("CTS:", ser.cts)
 ser.write(str.encode("SKRESET" + "\r\n"))
 ser.readline() # エコーバック
 print('SKRESET:', ser.readline().decode(encoding='utf-8'), end="")
-time.sleep(1)
+sleep(1)
 
 # Bルート認証パスワード設定
 print('Bルートパスワード設定')
