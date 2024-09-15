@@ -1,7 +1,8 @@
 import sys
 import serial
-import configparser
 import logging
+import datetime
+import configparser
 from time import sleep
 
 # Setup logging
@@ -87,6 +88,7 @@ def handle_echonet_response(data):
             hex_watt = res[-2:].hex()
             watt = int(hex_watt, 16)
             if watt >= 10:
+                logger.info(datetime.datetime.now())
                 logger.info(f"瞬時電力計測値: {watt} [W]")
             else:
                 logger.info('[Skip] watt < 10')
