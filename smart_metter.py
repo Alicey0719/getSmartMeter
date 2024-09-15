@@ -1,7 +1,6 @@
 import sys
 import serial
 import logging
-import datetime
 import configparser
 from time import sleep
 
@@ -32,8 +31,10 @@ def init_serial(device):
         timeout=2
     )
 
-def send_command(ser, command):
+def send_command(ser, command, ignore_echoback=True):
     ser.write(str.encode(command + "\r\n"))
+    if ignore_echoback:
+        ser.readline()
     return ser.readline().decode(encoding='utf-8')
 
 def setup_broute(ser, config):
@@ -88,7 +89,6 @@ def handle_echonet_response(data):
             hex_watt = res[-2:].hex()
             watt = int(hex_watt, 16)
             if watt >= 10:
-                logger.info(datetime.datetime.now())
                 logger.info(f"瞬時電力計測値: {watt} [W]")
             else:
                 logger.info('[Skip] watt < 10')
