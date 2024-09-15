@@ -21,12 +21,13 @@ def send_command(ser, command):
 def setup_broute_auth(ser, broute_pw, broute_id):
     """Set up Broute authentication."""
     print('Setting up Broute password')
-    send_command(ser, f"SKSETPWD C {broute_pw}")
-    print(send_command(ser, f"SKSETPWD C {broute_pw}"))
+    send_command(ser, f"SKSETRBID {broute_id}")
+    print(ser.readline().decode(encoding='utf-8').strip())
     
     print('Setting up Broute ID')
     send_command(ser, f"SKSETRBID {broute_id}")
-    print(send_command(ser, f"SKSETRBID {broute_id}"))
+    print(ser.readline().decode(encoding='utf-8').strip())
+
 
 def scan_for_channels(ser, max_duration):
     """Perform an active scan for channels and return scan results."""
