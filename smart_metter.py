@@ -1,132 +1,121 @@
-from time import sleep
-
 import sys
 import serial
 import configparser
+import logging
+from time import sleep
 
-# Serial Device
-serial_device = '/dev/ttyUSB0'
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-# 瞬時電力計測値取得コマンドフレーム
-echonetLiteFrame = b'\x10\x81\x00\x01\x05\xFF\x01\x02\x88\x01\x62\x01\xE7\x00'
+def load_config(file_path):
+    config = configparser.ConfigParser()
+    config.read(file_path, 'utf-8')
+    return {
+        'broute_id': config.get('settings', 'broute_id'),
+        'broute_pw': config.get('settings', 'broute_pw'),
+        'channel': config.get('settings', 'channel'),
+        'panid': config.get('settings', 'panid'),
+        'address': config.get('settings', 'address')
+    }
 
-# config init
-inifile       = configparser.ConfigParser()
-inifile.read('./conf.ini', 'utf-8')
-Broute_id     = inifile.get('settings', 'broute_id')
-Broute_pw     = inifile.get('settings', 'broute_pw')
-Channel       = inifile.get('settings', 'channel')
-PanId         = inifile.get('settings', 'panid')
-Address       = inifile.get('settings', 'address')
+def init_serial(device):
+    return serial.Serial(
+        port=device,
+        baudrate=115200,
+        parity=serial.PARITY_NONE,
+        stopbits=serial.STOPBITS_ONE,
+        bytesize=serial.EIGHTBITS,
+        rtscts=True,
+        xonxoff=False,
+        timeout=2
+    )
 
-# serial init
-ser = serial.Serial(
-    port=serial_device, 
-    baudrate=115200,
-    parity=serial.PARITY_NONE,
-    stopbits=serial.STOPBITS_ONE,
-    bytesize=serial.EIGHTBITS,
-    rtscts=True,   #HWフロー制御
-    xonxoff=False, #SWフロー制御
-    timeout=2
-)
+def send_command(ser, command):
+    ser.write(str.encode(command + "\r\n"))
+    return ser.readline().decode(encoding='utf-8')
 
-# RTS/CTSのステータス確認
-print("RTS:", ser.rts)
-print("CTS:", ser.cts)
+def setup_broute(ser, config):
+    logger.info('Sending SKRESET')
+    logger.info('SKRESET: %s', send_command(ser, "SKRESET"))
+    sleep(1)
+    
+    logger.info('Setting up Broute password')
+    logger.info('Setup Broute password: %s', send_command(ser, f"SKSETPWD C {config['broute_pw']}"))
+    
+    logger.info('Setting up Broute ID')
+    logger.info('Setup Broute ID: %s', send_command(ser, f"SKSETRBID {config['broute_id']}"))
+    
+    logger.info('Setting up Channel')
+    logger.info('Setup Channel: %s', send_command(ser, f"SKSREG S2 {config['channel']}"))
+    
+    logger.info('Setting up PanID')
+    logger.info('Setup PanID: %s', send_command(ser, f"SKSREG S3 {config['panid']}"))
 
-# SKRESET
-ser.write(str.encode("SKRESET" + "\r\n"))
-ser.readline() # エコーバック
-print('SKRESET:', ser.readline().decode(encoding='utf-8'), end="")
-sleep(1)
+def join_network(ser, address):
+    logger.info('Attempting SKJOIN')
+    logger.info('SKJOIN: %s', send_command(ser, f"SKJOIN {address}"))
+    while True:
+        line = ser.readline().decode(encoding='utf-8', errors='ignore')
+        if line.startswith("EVENT 24"):
+            logger.error("PANA connect failed")
+            sys.exit()
+        elif line.startswith("EVENT 25"):
+            logger.info('PANA connect success')
+            break
 
-# SKSETPWD Broute passowrd
-print('Setup Broute password')
-ser.write(str.encode("SKSETPWD C " + Broute_pw + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")
+def read_echonet_lite(ser, address, echonet_lite_frame):
+    command = f"SKSENDTO 1 {address} 0E1A 1 0 {len(echonet_lite_frame):04X} "
+    ser.write(str.encode(command) + echonet_lite_frame)
 
-# SKSETRBID Broute ID
-print('Setup Broute ID')
-ser.write(str.encode("SKSETRBID " + Broute_id + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")
-
-# SKSREG S2 Channel
-print('Setup Channel')
-ser.write(str.encode("SKSREG S2 " + Channel + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")
-
-# SKSREG S3 PanID
-print('Setup PanID')
-ser.write(str.encode("SKSREG S3 " + PanId + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")
-
-# SKJOIN
-print('SKJOIN')
-ser.write(str.encode("SKJOIN " + Address + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")
-
-# wait PANA connection
-bConnected = False
-while not bConnected:
-    line = ser.readline().decode(encoding='utf-8', errors='ignore')
-    if line.startswith("EVENT 24"):
-        print("PANA connect failed")
-        sys.exit()
-    elif line.startswith("EVENT 25"):
-        print('PANA connect success')
-        bConnected = True
-
-ser.readline()
-
-while True:
-    # send ECHONET Lite Frame
-    command = "SKSENDTO 1 {0} 0E1A 1 0 {1:04X} ".format(Address, len(echonetLiteFrame))
-    ser.write(str.encode(command) + echonetLiteFrame )
-
-    # debug
-    # print('[debug:]', ser.readline()) # エコーバック
-    # print('[debug]', ser.readline()) # EVENT 21
-    # print('[debug]',ser.readline()) # OK
-
-    # data read
     data = ser.readline()
-    print(data)
-
-    # data check
     if data.startswith(b"ERXUDP"):
-        cols = data.strip().split(b' ')
-        print('[debug cols]', cols)
-        try:
-            res = cols[9]
-        except IndexError:
-            print('[Skip] cols index error')
-            continue
-        print('[debug res]', res, res.hex(), len(res))
-        seoj = res[4:4+3]
-        # print('[debug seoj]', seoj.hex())
-        esv = res[10:10+1]
-        # print('[debug esv]', esv.hex())
-        if seoj.hex() == "028801" and esv.hex() == "72":
-            epc = res[12:12+1]
-            # print('[epc]', epc.hex())
-            # 瞬時電力計測値(E7)
-            if epc.hex() == "e7":
-                hex_watt = res[-2:].hex() # Last4byte瞬時電力?
-                # print('[hex_watt]', hex_watt)
-                watt = int(hex_watt, 16)
-                if watt < 10:
-                    print('[Skip] watt < 10')
-                    continue
-                print(u"瞬時電力計測値:{0}[W]".format(watt))
-        else:
-            print('[Skip] not ECHONET Lite Frame')
+        handle_echonet_response(data)
 
-    sleep(60)
+def handle_echonet_response(data):
+    cols = data.strip().split(b' ')
+    try:
+        res = cols[9]
+    except IndexError:
+        logger.warning('[Skip] cols index error')
+        return
+    seoj = res[4:7]
+    esv = res[10:11]
+    if seoj.hex() == "028801" and esv.hex() == "72":
+        epc = res[12:13]
+        if epc.hex() == "e7":
+            hex_watt = res[-2:].hex()
+            watt = int(hex_watt, 16)
+            if watt >= 10:
+                logger.info(f"瞬時電力計測値: {watt} [W]")
+            else:
+                logger.info('[Skip] watt < 10')
+    else:
+        logger.info('[Skip] not ECHONET Lite Frame')
 
-ser.close()
+def main():
+    # Define parameters
+    config_path = './conf.ini'
+    serial_device = '/dev/ttyUSB0'
+    echonet_lite_frame = b'\x10\x81\x00\x01\x05\xFF\x01\x02\x88\x01\x62\x01\xE7\x00'
+    sleep_interval = 60
+
+    # Load configuration and initialize serial
+    config = load_config(config_path)
+    ser = init_serial(serial_device)
+    
+    logger.info("RTS: %s", ser.rts)
+    logger.info("CTS: %s", ser.cts)
+    
+    setup_broute(ser, config)
+    join_network(ser, config['address'])
+
+    # Main loop
+    while True:
+        read_echonet_lite(ser, config['address'], echonet_lite_frame)
+        sleep(sleep_interval)
+
+    ser.close()
+
+if __name__ == '__main__':
+    main()

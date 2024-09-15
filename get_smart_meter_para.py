@@ -2,66 +2,103 @@ import sys
 import serial
 import configparser
 
-# シリアルポートデバイス名
-#serialPortDev = 'COM5'  # Windows の場合
-serialPortDev = '/dev/ttyUSB0'  # Linuxの場合
+def load_config(file_path):
+    """Load configuration from file."""
+    config = configparser.ConfigParser()
+    config.read(file_path, 'utf-8')
+    return config
 
-# 設定情報読み出し
-inifile       = configparser.ConfigParser()
-inifile.read('./SmartMeter.ini', 'utf-8')
-Broute_id     = inifile.get('settings', 'Broute_id')
-Broute_pw     = inifile.get('settings', 'Broute_pw')
+def initialize_serial(port, baudrate):
+    """Initialize the serial port."""
+    return serial.Serial(port, baudrate)
 
-# シリアルポート初期化
-ser = serial.Serial(serialPortDev, '115200')
+def send_command(ser, command):
+    """Send a command to the serial port and read the response."""
+    ser.write(str.encode(command + "\r\n"))
+    response = ser.readline().decode(encoding='utf-8').strip()
+    return response
 
-# Bルート認証パスワード設定
-print('Bルートパスワード設定')
-ser.write(str.encode("SKSETPWD C " + Broute_pw + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")  # 成功ならOKを返す
+def setup_broute_auth(ser, broute_pw, broute_id):
+    """Set up Broute authentication."""
+    print('Setting up Broute password')
+    send_command(ser, f"SKSETPWD C {broute_pw}")
+    print(send_command(ser, f"SKSETPWD C {broute_pw}"))
+    
+    print('Setting up Broute ID')
+    send_command(ser, f"SKSETRBID {broute_id}")
+    print(send_command(ser, f"SKSETRBID {broute_id}"))
 
-# Bルート認証ID設定
-print('Bルート認証ID設定')
-ser.write(str.encode("SKSETRBID " + Broute_id + "\r\n"))
-ser.readline()
-print(ser.readline().decode(encoding='utf-8'), end="")  # 成功ならOKを返す
+def scan_for_channels(ser, max_duration):
+    """Perform an active scan for channels and return scan results."""
+    scan_duration = 4
+    scan_results = {}
+    
+    while 'Channel' not in scan_results:
+        send_command(ser, f"SKSCAN 2 FFFFFFFF {scan_duration} 0")
+        scan_end = False
+        
+        while not scan_end:
+            line = ser.readline().decode(encoding='utf-8')
+            if line.startswith("EVENT 22"):
+                scan_end = True
+            elif line.startswith("  "):
+                cols = line.strip().split(':')
+                if len(cols) == 2:
+                    scan_results[cols[0]] = cols[1]
 
-scanDuration = 4 # スキャン時間
-scanRes = {} # スキャン結果の入れ物
+        scan_duration += 1
+        if scan_duration > max_duration and 'Channel' not in scan_results:
+            print("Scan retry limit exceeded")
+            sys.exit()
 
-# アクティブスキャン
-while ('Channel' not in scanRes):
-    ser.write(str.encode("SKSCAN 2 FFFFFFFF " + str(scanDuration) + " 0" + "\r\n"))
-    scanEnd = False
-    while not scanEnd :
-        line = ser.readline().decode(encoding='utf-8')
-        if line.startswith("EVENT 22") :
-            # スキャン終了
-            scanEnd = True
-        elif line.startswith("  ") :
-            cols = line.strip().split(':')
-            scanRes[cols[0]] = cols[1]
-    scanDuration+=1
+    return scan_results
 
-    if 7 < scanDuration and ('Channel' not in scanRes):
-        print("スキャンリトライオーバー")
-        sys.exit()
+def convert_mac_to_ipv6(ser, mac_addr):
+    """Convert MAC address to IPv6 link-local address."""
+    send_command(ser, f"SKLL64 {mac_addr}")
+    return ser.readline().decode(encoding='utf-8').strip()
 
-# Channel設定
-print("Channel:" + scanRes["Channel"])
-inifile.set('settings', 'Channel', scanRes["Channel"])
+def update_config(config, settings):
+    """Update configuration file with new settings."""
+    for key, value in settings.items():
+        config.set('settings', key, value)
 
-# Pan ID設定
-print("PanID:" + scanRes["Pan ID"])
-inifile.set('settings', 'PanId', scanRes["Pan ID"])
+    with open('./conf.ini', 'w') as configfile:
+        config.write(configfile)
 
-# MACアドレスをIPV6リンクローカルアドレスに変換
-ser.write(str.encode("SKLL64 " + scanRes["Addr"] + "\r\n"))
-ser.readline().decode(encoding='utf-8')
-ipv6Addr = ser.readline().decode(encoding='utf-8').strip()
-print("Address:" + ipv6Addr)
-inifile.set('settings', 'Address', ipv6Addr)
+def main():
+    # Configuration
+    serial_port = '/dev/ttyUSB0'
+    baudrate = '115200'
+    config_file = './conf.ini'
+    max_scan_duration = 7
 
-with open('./SmartMeter.ini', 'w') as configfile:
-    inifile.write(configfile)
+    # Load configuration
+    config = load_config(config_file)
+    broute_id = config.get('settings', 'Broute_id')
+    broute_pw = config.get('settings', 'Broute_pw')
+
+    # Initialize serial port
+    ser = initialize_serial(serial_port, baudrate)
+
+    # Setup Broute authentication
+    setup_broute_auth(ser, broute_pw, broute_id)
+
+    # Scan for channels
+    scan_results = scan_for_channels(ser, max_scan_duration)
+
+    # Update configuration with scan results
+    settings = {
+        'Channel': scan_results.get("Channel", "Unknown"),
+        'PanId': scan_results.get("Pan ID", "Unknown"),
+        'Address': convert_mac_to_ipv6(ser, scan_results.get("Addr", "Unknown"))
+    }
+    print(f"Channel: {settings['Channel']}")
+    print(f"PanID: {settings['PanId']}")
+    print(f"Address: {settings['Address']}")
+    update_config(config, settings)
+
+    ser.close()
+
+if __name__ == '__main__':
+    main()
