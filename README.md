@@ -27,6 +27,7 @@ python3 smart_metter.py
 
 ## 参考になるサイト
 - https://qiita.com/rukihena/items/82266ed3a43e4b652adb
+- https://qiita.com/katsumin/items/acd567e9b8e81c691ed4
 - https://smitch.hatenablog.com/entry/2021/04/11/231943
 - https://echonet.jp/wp/wp-content/uploads/pdf/General/Standard/ECHONET_lite_V1_14_jp/ECHONET-Lite_Ver.1.14(02).pdf
 - ChatGPT
