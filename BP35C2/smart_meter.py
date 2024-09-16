@@ -77,7 +77,6 @@ class SmartMeter:
         logger.debug('SKJOIN: %s', self.send_command(f"SKJOIN {address}"))
         while True:
             line = self.ser.readline().decode(encoding='utf-8', errors='ignore')
-            print(line)
             if line.startswith("EVENT 24"):
                 logger.error("PANA connect failed")
                 sys.exit()

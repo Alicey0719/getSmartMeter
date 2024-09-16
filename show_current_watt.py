@@ -18,15 +18,16 @@ def main():
     config = load_config(config_path)
     broute_pw = config.get('settings', 'broute_pw')
     broute_id = config.get('settings', 'broute_id')
-    address = config.get('settings', 'address')
     panid = config.get('settings', 'panid')
+    channel = config.get('settings', 'channel')
+    address = config.get('settings', 'address')
 
     # Initialize SmartMeter instance
     sm = SmartMeter(serial_device, 115200)
 
     # Setup Broute authentication and join network
     sm.setup_broute_auth(broute_pw, broute_id)
-    sm.setup_channel(address)
+    sm.setup_channel(channel)
     sm.setup_panid(panid)
 
     sm.join_network(address)
