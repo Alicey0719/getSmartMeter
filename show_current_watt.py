@@ -1,6 +1,10 @@
+import logging
 import configparser
 from time import sleep
 from BP35C2.smart_meter import SmartMeter
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def load_config(file_path):
     """Load configuration from file."""
@@ -32,9 +36,8 @@ def main():
 
     sm.join_network(address)
 
-    # Main loop
     while True:
-        sm.get_current_watt(address)
+        logging.info("Current Watt: %s[W]", sm.get_current_watt(address))
         sleep(sleep_interval)
 
     # sm.close()
