@@ -22,7 +22,7 @@ conf.iniが増える
 ## run
 1. run get script
 ```
-python3 smart_metter.py
+python3 show_current_watt.py
 ```
 
 ## 参考になるサイト
