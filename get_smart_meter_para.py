@@ -47,7 +47,7 @@ def main():
     print(f"Channel: {settings['Channel']}")
     print(f"PanID: {settings['PanId']}")
     print(f"Address: {settings['Address']}")
-    update_config(config, settings)
+    update_config(config, settings, config_file)
 
 
 if __name__ == '__main__':

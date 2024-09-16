@@ -16,23 +16,27 @@ def main():
 
     # Load configuration
     config = load_config(config_path)
-    address = config.get('settings', 'address')
-
-    # Initialize SmartMeter instance
-    meter = SmartMeter(serial_device, 115200)
-
-    # Setup Broute authentication and join network
     broute_pw = config.get('settings', 'broute_pw')
     broute_id = config.get('settings', 'broute_id')
-    meter.setup_broute_auth(broute_pw, broute_id)
-    meter.join_network(address)
+    address = config.get('settings', 'address')
+    panid = config.get('settings', 'panid')
+
+    # Initialize SmartMeter instance
+    sm = SmartMeter(serial_device, 115200)
+
+    # Setup Broute authentication and join network
+    sm.setup_broute_auth(broute_pw, broute_id)
+    sm.setup_channel(address)
+    sm.setup_panid(panid)
+
+    sm.join_network(address)
 
     # Main loop
     while True:
         sm.get_current_watt(address)
         sleep(sleep_interval)
 
-    meter.close()
+    # sm.close()
 
 if __name__ == '__main__':
     main()

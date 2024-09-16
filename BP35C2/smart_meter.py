@@ -1,19 +1,22 @@
+import sys
 import serial
 import logging
 from time import sleep
 
 # Setup logging for smart_meter
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class SmartMeter:
     def __init__(self, serial_port, baudrate):
         """Initialize the SmartMeter class."""
         self.ser = self.initialize_serial(serial_port, baudrate)
+        logger.debug('SKRESET: %s', self.send_command('SKRESET'))
+        sleep(1)
 
-    def initialize_serial(self, port, baudrate):
+    def initialize_serial(self, serial_port, baudrate):
         """Initialize the serial port."""
-        ser = serial.Serial(port, baudrate)
+        ser = serial.Serial(serial_port, baudrate)
         logger.debug("RTS: %s", ser.rts)
         logger.debug("CTS: %s", ser.cts)
         return ser
@@ -27,11 +30,17 @@ class SmartMeter:
 
     def setup_broute_auth(self, broute_pw, broute_id):
         """Set up Broute authentication."""
-        logger.debug('Setting up Broute password')
-        self.send_command(f"SKSETPWD C {broute_pw}")
+        r = self.send_command(f"SKSETPWD C {broute_pw}")
+        logger.debug(f'Setting up Broute password: {r}')
         
-        logger.debug('Setting up Broute ID')
-        self.send_command(f"SKSETRBID {broute_id}")
+        r = self.send_command(f"SKSETRBID {broute_id}")
+        logger.debug(f'Setting up Broute ID: {r}')
+
+    def setup_channel(self, channel):
+        logger.debug("Setting up Channel: %s", self.send_command(f"SKSREG S2 {channel}"))
+
+    def setup_panid(self, panid):
+        logger.debug("Setting up PanID: %s", self.send_command(f"SKSREG S3 {panid}"))
 
     def scan_for_channels(self, max_duration):
         """Perform an active scan for channels and return scan results."""
@@ -65,10 +74,10 @@ class SmartMeter:
 
     def join_network(self, address):
         """Join the network using the provided address."""
-        logger.info('Attempting SKJOIN')
-        logger.info('SKJOIN: %s', self.send_command(f"SKJOIN {address}"))
+        logger.debug('SKJOIN: %s', self.send_command(f"SKJOIN {address}"))
         while True:
             line = self.ser.readline().decode(encoding='utf-8', errors='ignore')
+            print(line)
             if line.startswith("EVENT 24"):
                 logger.error("PANA connect failed")
                 sys.exit()
