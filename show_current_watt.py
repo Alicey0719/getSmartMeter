@@ -16,7 +16,7 @@ def main():
     # Define parameters
     config_path = './conf.ini'
     serial_device = '/dev/ttyUSB0'
-    sleep_interval = 30
+    sleep_interval = 60
 
     # Load configuration
     config = load_config(config_path)

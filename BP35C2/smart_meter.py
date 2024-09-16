@@ -94,18 +94,21 @@ class SmartMeter:
         command = f"SKSENDTO 1 {address} 0E1A 1 0 {len(echonet_lite_frame):04X} "
         self.ser.write(str.encode(command) + echonet_lite_frame)
 
-        data = self.ser.readline()
-        if data.startswith(b"ERXUDP"):
-            return self.handle_echonet_response(data)
+        while True:
+            data = self.ser.readline()
+            if data.startswith(b"ERXUDP"):
+                res = self.handle_echonet_response(data)
+                if type(res) is int:
+                    return res
 
-    def handle_echonet_response(self, data) -> int:
+    def handle_echonet_response(self, data):
         """Handle the response from an Echonet Lite frame."""
         cols = data.strip().split(b' ')
         try:
             res = cols[9]
         except IndexError:
             logger.warning('[Skip] cols index error')
-            return
+            return False
         seoj = res[4:7]
         esv = res[10:11]
         if seoj.hex() == "028801" and esv.hex() == "72":
