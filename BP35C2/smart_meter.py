@@ -92,19 +92,28 @@ class SmartMeter:
     def get_current_watt(self, address):
         """Get the current wattage from the smart meter."""
         echonet_lite_frame = b"\x10\x81\x00\x01\x05\xFF\x01\x02\x88\x01\x62\x01\xE7\x00"
-        return self.read_echonet_lite(address, echonet_lite_frame)
+        loop_count = 0
+        while loop_count < 3:
+            res = self.read_echonet_lite(address, echonet_lite_frame)
+            if type(res) is not int:
+                loop_count += 1
+                continue
+            return res
 
     def read_echonet_lite(self, address, echonet_lite_frame):
         """Send and receive an Echonet Lite frame."""
         command = f"SKSENDTO 1 {address} 0E1A 1 0 {len(echonet_lite_frame):04X} "
         self.ser.write(str.encode(command) + echonet_lite_frame)
 
-        while True:
+        loop_count = 0
+        while loop_count < 3:
             data = self.ser.readline()
             if data.startswith(b"ERXUDP"):
                 res = self.handle_echonet_response(data)
-                if type(res) is int:
-                    return res
+                if type(res) is not int:
+                    loop_count += 1
+                    continue
+                return res
 
     def handle_echonet_response(self, data):
         """Handle the response from an Echonet Lite frame."""

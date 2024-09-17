@@ -41,7 +41,10 @@ def main():
     sm.join_network(address)
 
     while True:
-        logging.info("Current Watt: %s[W]", sm.get_current_watt(address))
+        watt = sm.get_current_watt(address)
+        if type(watt) is not int:
+            continue
+        logging.info("Current Watt: %s[W]", watt)
         sleep(sleep_interval)
 
     # sm.close()
