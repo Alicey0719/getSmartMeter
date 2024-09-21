@@ -97,6 +97,7 @@ class SmartMeter:
             res = self.read_echonet_lite(address, echonet_lite_frame)
             if type(res) is not int:
                 loop_count += 1
+                logger.debug(f"[read_echonet_lite]Failed to get wattage: {loop_count}")
                 continue
             return res
 
@@ -112,6 +113,7 @@ class SmartMeter:
                 res = self.handle_echonet_response(data)
                 if type(res) is not int:
                     loop_count += 1
+                    logger.debug(f"[handle_echonet_response]Failed to get wattage: {loop_count}")
                     continue
                 return res
 

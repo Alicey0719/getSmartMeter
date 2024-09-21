@@ -43,6 +43,7 @@ def main():
     while True:
         watt = sm.get_current_watt(address)
         if type(watt) is not int:
+            logging.debug("Failed to get current watt")
             continue
         logging.info("Current Watt: %s[W]", watt)
         sleep(sleep_interval)
