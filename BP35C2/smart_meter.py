@@ -93,7 +93,7 @@ class SmartMeter:
         """Get the current wattage from the smart meter."""
         echonet_lite_frame = b"\x10\x81\x00\x01\x05\xFF\x01\x02\x88\x01\x62\x01\xE7\x00"
         loop_count = 0
-        while loop_count < 5:
+        while loop_count < 20:
             loop_count += 1
             res = self.read_echonet_lite(address, echonet_lite_frame)
             if type(res) is not int:
@@ -107,7 +107,7 @@ class SmartMeter:
         self.ser.write(str.encode(command) + echonet_lite_frame)
 
         loop_count = 0
-        while loop_count < 5:
+        while loop_count < 20:
             loop_count += 1
             data = self.ser.readline()
             if data.startswith(b"ERXUDP"):
