@@ -16,7 +16,7 @@ def load_config(file_path):
     return config
 
 
-def main():
+def show_watt():
     # Define parameters
     config_path = "./conf.ini"
     serial_device = "/dev/ttyUSB0"
@@ -40,15 +40,25 @@ def main():
 
     sm.join_network(address)
 
+    try_count = 0
     while True:
+        if try_count > 10:
+            logging.info("Failed to get current watt after 10 attempts")
+            return -1
+
         watt = sm.get_current_watt(address)
         if type(watt) is not int:
             logging.debug("Failed to get current watt")
+            try_count += 1
             continue
         logging.info("Current Watt: %s[W]", watt)
         sleep(sleep_interval)
 
     # sm.close()
+
+def main():
+    while True:
+        show_watt()
 
 
 if __name__ == "__main__":
