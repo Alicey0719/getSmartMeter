@@ -107,7 +107,7 @@ class SmartMeter:
         self.ser.write(str.encode(command) + echonet_lite_frame)
 
         loop_count = 0
-        while loop_count < 20:
+        while loop_count < 5:
             loop_count += 1
             data = self.ser.readline()
             if data.startswith(b"ERXUDP"):
