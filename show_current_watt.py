@@ -51,7 +51,9 @@ def show_watt():
             logging.debug("Failed to get current watt")
             try_count += 1
             continue
+
         logging.info("Current Watt: %s[W]", watt)
+        try_count = 0
         sleep(sleep_interval)
 
     # sm.close()
